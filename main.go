@@ -23,11 +23,11 @@ type Leak struct {
 }
 
 type Options struct {
-	Config      string `long:"config" description:"config path"`
+	Config      string `long:"config" description:"Config path"`
 	Threads     int    `long:"threads" description:"Maximum number of threads gitleaks spawns"`
-	Redact      bool   `long:"redact" description:"redact secrets from log messages and leaks"`
+	Redact      bool   `long:"redact" description:"Redact secrets from log messages and leaks"`
 	PrettyPrint bool   `long:"pretty" description:"Pretty print json if leaks are present"`
-	File        string `long:"file" short:"f" description:"file to audit"`
+	File        string `long:"file" short:"f" description:"File to audit"`
 }
 
 var (
@@ -39,6 +39,13 @@ func main() {
 	var opts Options
 	parser := flags.NewParser(&opts, flags.Default)
 	_, err := parser.Parse()
+	if err != nil {
+		if flagsErr, ok := err.(*flags.Error); ok && flagsErr.Type != flags.ErrHelp {
+			parser.WriteHelp(os.Stdout)
+		}
+		os.Exit(0)
+	}
+
 
 	cfg, err := NewConfig(opts.Config)
 	if err != nil {
@@ -74,6 +81,10 @@ func audit(r io.ReadCloser, cfg Config, opts Options) {
 	scanner := bufio.NewScanner(r)
 	lineNum := 0
 
+	if opts.File == "" {
+		lineNum = -1
+	}
+
 	for scanner.Scan() {
 		txt := scanner.Text()
 
@@ -101,7 +112,9 @@ func audit(r io.ReadCloser, cfg Config, opts Options) {
 				}
 			}
 		}(txt)
-		lineNum += 1
+		if opts.File != "" {
+			lineNum += 1
+		}
 	}
 }
 
